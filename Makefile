@@ -1,4 +1,4 @@
-DOCKER_NAME ?= rcore-tutorial-v3
+DOCKER_NAME ?= dinghao188/rcore-tutorial
 .PHONY: docker build_docker
 	
 docker:
