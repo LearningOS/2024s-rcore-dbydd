@@ -1,4 +1,7 @@
 //! Types related to task management
+
+use crate::config::MAX_SYSCALL_NUM;
+
 use super::TaskContext;
 use crate::config::TRAP_CONTEXT_BASE;
 use crate::mm::{
@@ -13,7 +16,12 @@ pub struct TaskControlBlock {
 
     /// Maintain the execution status of the current process
     pub task_status: TaskStatus,
-
+    /// The task context
+    pub task_cx: TaskContext,
+    ///syscall_times
+    pub syscall_times: [u32; MAX_SYSCALL_NUM],
+    ///init_time
+    pub time: usize,
     /// Application address space
     pub memory_set: MemorySet,
 
