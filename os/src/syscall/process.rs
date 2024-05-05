@@ -1,13 +1,17 @@
 //! Process management syscalls
 
 use crate::{
-    config::MAX_SYSCALL_NUM,
-    syscall::{SYSCALL_EXIT, SYSCALL_GET_TIME, SYSCALL_TASK_INFO, SYSCALL_YIELD},
+    config::{MAX_SYSCALL_NUM, PAGE_SIZE},
+    mm::{self, translate},
+    syscall::{
+        SYSCALL_EXIT, SYSCALL_GET_TIME, SYSCALL_MMAP, SYSCALL_MUNMAP, SYSCALL_TASK_INFO,
+        SYSCALL_YIELD,
+    },
     task::{
         change_program_brk, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus,
         TASK_MANAGER,
     },
-    timer::{get_time_ms, get_time_us},
+    timer::get_time_ms,
 };
 
 #[repr(C)]
@@ -61,28 +65,34 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
 pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
     TASK_MANAGER.inc_call_times(SYSCALL_TASK_INFO);
     trace!("kernel: sys_task_info NOT IMPLEMENTED YET!");
-    let fetch_task_info = TASK_MANAGER.fetch_task_info();
-    unsafe {
-        *ti = TaskInfo {
-            status: fetch_task_info.task_status,
-            syscall_times: fetch_task_info.syscall_times,
-            time: get_time_ms() - fetch_task_info.time,
-        }
-    }
+    TASK_MANAGER.with_task_info(|inner, manager| {
+        let translated = translate(manager.get_current_token(), ti);
+        translated.status = inner.task_status;
+        translated.syscall_times = inner.syscall_times;
+        translated.time = get_time_ms() - inner.time;
+    });
 
     0
 }
 
 // YOUR JOB: Implement mmap.
-pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
+pub fn sys_mmap(start: usize, len: usize, port: usize) -> isize {
+    TASK_MANAGER.inc_call_times(SYSCALL_MMAP);
     trace!("kernel: sys_mmap NOT IMPLEMENTED YET!");
-    -1
+    if start % PAGE_SIZE != 0 || port & !0x7 != 0 || port & 0x7 == 0 {
+        return -1;
+    }
+    mm::alloc_virtual_memory(start, len, port)
 }
 
 // YOUR JOB: Implement munmap.
-pub fn sys_munmap(_start: usize, _len: usize) -> isize {
+pub fn sys_munmap(start: usize, len: usize) -> isize {
+    TASK_MANAGER.inc_call_times(SYSCALL_MUNMAP);
     trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
-    -1
+    if start % PAGE_SIZE != 0 {
+        return -1;
+    }
+    mm::free_virtual_memory(start, len)
 }
 /// change data segment size
 pub fn sys_sbrk(size: i32) -> isize {

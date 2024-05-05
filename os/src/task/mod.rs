@@ -14,8 +14,10 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::{MAX_APP_NUM, MAX_SYSCALL_NUM};
-use crate::loader::{get_app_data, get_num_app, init_app_cx};
+use core::borrow::BorrowMut;
+
+use crate::loader::{get_app_data, get_num_app};
+use crate::mm::MemorySet;
 use crate::sync::UPSafeCell;
 use crate::timer::get_time_ms;
 use crate::trap::TrapContext;
@@ -93,9 +95,21 @@ impl TaskManager {
     }
 
     ///fetch a copy of  task control block
-    pub(crate) fn fetch_task_info(&self) -> TaskControlBlock {
+    pub(crate) fn with_task_info<F>(&self, f: F)
+    where
+        F: Fn(&TaskControlBlock, &Self),
+    {
         let exclusive_access = self.inner.exclusive_access();
-        exclusive_access.tasks[exclusive_access.current_task].clone()
+        f(&exclusive_access.tasks[exclusive_access.current_task], self)
+    }
+
+    pub(crate) fn operate_memset<F, T>(&self, mut op: F) -> T
+    where
+        F: FnMut(*mut MemorySet) -> T,
+    {
+        let mut exclusive_access = self.inner.exclusive_access();
+        let current_task = exclusive_access.current_task.clone();
+        op(exclusive_access.tasks[current_task].memory_set.borrow_mut() as *mut MemorySet)
     }
 
     /// Run the first task in task list.
@@ -143,7 +157,7 @@ impl TaskManager {
     }
 
     /// Get the current 'Running' task's token.
-    fn get_current_token(&self) -> usize {
+    pub fn get_current_token(&self) -> usize {
         let inner = self.inner.exclusive_access();
         inner.tasks[inner.current_task].get_user_token()
     }

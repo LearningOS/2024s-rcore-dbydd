@@ -20,9 +20,81 @@ pub use memory_set::{kernel_stack_position, MapPermission, MemorySet, KERNEL_SPA
 pub use page_table::{translated_byte_buffer, PageTableEntry};
 use page_table::{PTEFlags, PageTable};
 
+use crate::task::TASK_MANAGER;
+
 /// initiate heap allocator, frame allocator and kernel space
 pub fn init() {
     heap_allocator::init_heap();
     frame_allocator::init_frame_allocator();
     KERNEL_SPACE.exclusive_access().activate();
+}
+
+/// convert virt address to phy address
+pub fn translate<T>(token: usize, ptr: *mut T) -> &'static mut T {
+    let from_token = PageTable::from_token(token);
+    let from = VirtAddr::from(ptr as usize);
+    let actual_address: PhysAddr = from_token
+        .find_pte(from.clone().floor())
+        .map(|entry| {
+            let pta: PhysAddr = entry.ppn().into();
+            (pta.0 + from.page_offset()).into()
+        })
+        .unwrap();
+    actual_address.get_mut()
+}
+
+/// Just look at this name...
+pub fn alloc_virtual_memory(start: usize, len: usize, port: usize) -> isize {
+    let from = VirtAddr::from(start);
+    let mut to = VirtAddr::from(start + len);
+
+    let from_vpn = from.floor();
+    let to_vpn = to.ceil();
+
+    to = VirtAddr::from(to_vpn);
+
+    TASK_MANAGER.operate_memset(|memory_set| {
+        unsafe {
+            if (*memory_set).page_table.interval_valid(from_vpn, to_vpn) {
+                (*memory_set).insert_framed_area(
+                    from.into(),
+                    to.into(),
+                    MapPermission::from_bits((port << 1 | 16) as u8).unwrap(),
+                );
+                return 0;
+            }
+        }
+        -1
+    })
+}
+
+/// free virtual memory
+pub fn free_virtual_memory(start: usize, len: usize) -> isize {
+    let from = VirtAddr::from(start);
+    let to = VirtAddr::from(start + len);
+
+    let from_vpn = from.floor();
+    let to_vpn = to.ceil();
+
+    TASK_MANAGER.operate_memset(|memory_set| unsafe {
+        if (*memory_set).page_table.interval_valid(from_vpn, to_vpn) {
+            if (*memory_set)
+                .page_table
+                .interval_op::<isize>(from_vpn, to_vpn)
+                .any(|thisvpn| {
+                    (*memory_set)
+                        .areas
+                        .iter_mut()
+                        .filter(|area| (*area).vpn_range.get_start() == thisvpn)
+                        .any(|area| {
+                            area.unmap(&mut (*memory_set).page_table);
+                            true
+                        })
+                })
+            {
+                return 0;
+            };
+        }
+        -1
+    })
 }
