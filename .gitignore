@@ -15,7 +15,7 @@ tools/
 pushall.sh
 *.bak
 
-user/*
-ci-user/*
+user
+ci-user
 gdb-14.2
 # os/vendor/*
