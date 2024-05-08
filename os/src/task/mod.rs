@@ -89,9 +89,9 @@ impl TaskManager {
     }
 
     ///fetch a copy of  task control block
-    pub(crate) fn with_task_info<F>(&self, f: F)
+    pub(crate) fn with_task_info<F, T>(&self, f: F) -> T
     where
-        F: Fn(&TaskControlBlock, &Self),
+        F: Fn(&TaskControlBlock, &Self) -> T,
     {
         let exclusive_access = self.inner.exclusive_access();
         f(&exclusive_access.tasks[exclusive_access.current_task], self)
@@ -173,6 +173,7 @@ impl TaskManager {
     /// or there is no `Ready` task and we can exit with all applications completed
     fn run_next_task(&self) {
         if let Some(next) = self.find_next_task() {
+            // println!("switching!");
             let mut inner = self.inner.exclusive_access();
             let current = inner.current_task;
             inner.tasks[next].task_status = TaskStatus::Running;

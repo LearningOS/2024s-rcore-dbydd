@@ -1,7 +1,6 @@
 //! Types related to task management
 
 use crate::config::MAX_SYSCALL_NUM;
-use crate::timer::get_time_ms;
 
 use super::TaskContext;
 use crate::config::TRAP_CONTEXT_BASE;
@@ -70,7 +69,7 @@ impl TaskControlBlock {
             heap_bottom: user_sp,
             program_brk: user_sp,
             syscall_times: [0; MAX_SYSCALL_NUM],
-            time: get_time_ms(),
+            time: 0,
         };
         // prepare TrapContext in user space
         let trap_cx = task_control_block.get_trap_cx();

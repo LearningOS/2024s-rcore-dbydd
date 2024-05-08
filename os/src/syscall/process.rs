@@ -11,7 +11,7 @@ use crate::{
         change_program_brk, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus,
         TASK_MANAGER,
     },
-    timer::get_time_ms,
+    timer::{get_time_ms, get_time_us},
 };
 
 #[repr(C)]
@@ -57,7 +57,11 @@ pub fn sys_yield() -> isize {
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     TASK_MANAGER.inc_call_times(SYSCALL_GET_TIME);
     trace!("kernel: sys_get_time");
-    -1
+    let get_time_us = get_time_us();
+    let translate = translate(TASK_MANAGER.get_current_token(), _ts);
+    translate.sec = get_time_us / 1_000_000;
+    translate.usec = get_time_us % 1_000_000;
+    0
 }
 
 /// YOUR JOB: Finish sys_task_info to pass testcases
