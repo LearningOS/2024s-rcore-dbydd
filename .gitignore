@@ -1,4 +1,3 @@
-.*/*
 !.github/*
 !.vscode/settings.json
 .idea
@@ -16,4 +15,7 @@ tools/
 pushall.sh
 *.bak
 
-user/*
+user
+ci-user
+gdb-14.2
+# os/vendor/*

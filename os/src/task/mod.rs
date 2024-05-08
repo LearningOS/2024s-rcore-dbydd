@@ -19,12 +19,13 @@ mod manager;
 mod processor;
 mod switch;
 #[allow(clippy::module_inception)]
-mod task;
+pub mod task;
 
 use crate::loader::get_app_data_by_name;
+
 use alloc::sync::Arc;
 use lazy_static::*;
-pub use manager::{fetch_task, TaskManager};
+pub use manager::{fetch_task, TaskManager, TASK_MANAGER};
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
 

@@ -29,6 +29,7 @@ impl TaskManager {
 
 lazy_static! {
     /// TASK_MANAGER instance through lazy_static!
+    /// TODO migrate things
     pub static ref TASK_MANAGER: UPSafeCell<TaskManager> =
         unsafe { UPSafeCell::new(TaskManager::new()) };
 }

@@ -32,8 +32,8 @@ lazy_static! {
 }
 /// address space
 pub struct MemorySet {
-    page_table: PageTable,
-    areas: Vec<MapArea>,
+    pub(super) page_table: PageTable,
+    pub(super) areas: Vec<MapArea>,
 }
 
 impl MemorySet {
@@ -48,6 +48,7 @@ impl MemorySet {
     pub fn token(&self) -> usize {
         self.page_table.token()
     }
+
     /// Assume that no conflicts.
     pub fn insert_framed_area(
         &mut self,
@@ -303,7 +304,7 @@ impl MemorySet {
 }
 /// map area structure, controls a contiguous piece of virtual memory
 pub struct MapArea {
-    vpn_range: VPNRange,
+    pub(super) vpn_range: VPNRange,
     data_frames: BTreeMap<VirtPageNum, FrameTracker>,
     map_type: MapType,
     map_perm: MapPermission,

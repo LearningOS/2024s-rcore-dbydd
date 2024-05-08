@@ -1,4 +1,7 @@
 //! Types related to task management & Functions for completely changing TCB
+
+use crate::config::MAX_SYSCALL_NUM;
+
 use super::TaskContext;
 use super::{kstack_alloc, pid_alloc, KernelStack, PidHandle};
 use crate::config::TRAP_CONTEXT_BASE;
@@ -44,12 +47,14 @@ pub struct TaskControlBlockInner {
     /// where the application address space is lower than base_size
     pub base_size: usize,
 
-    /// Save task context
-    pub task_cx: TaskContext,
-
     /// Maintain the execution status of the current process
     pub task_status: TaskStatus,
-
+    /// The task context
+    pub task_cx: TaskContext,
+    ///syscall_times
+    pub syscall_times: [u32; MAX_SYSCALL_NUM],
+    ///init_time
+    pub time: usize,
     /// Application address space
     pub memory_set: MemorySet,
 
@@ -118,6 +123,8 @@ impl TaskControlBlock {
                     exit_code: 0,
                     heap_bottom: user_sp,
                     program_brk: user_sp,
+                    syscall_times: [0; MAX_SYSCALL_NUM],
+                    time: 0,
                 })
             },
         };
@@ -191,6 +198,8 @@ impl TaskControlBlock {
                     exit_code: 0,
                     heap_bottom: parent_inner.heap_bottom,
                     program_brk: parent_inner.program_brk,
+                    syscall_times: [0; MAX_SYSCALL_NUM],
+                    time: 0,
                 })
             },
         });
@@ -238,7 +247,7 @@ impl TaskControlBlock {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 /// task status: UnInit, Ready, Running, Exited
 pub enum TaskStatus {
     /// uninitialized
