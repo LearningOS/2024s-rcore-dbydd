@@ -87,33 +87,32 @@ impl PageTable {
             .into_iter()
             .map(|num| VirtPageNum::from(num))
             .any(|vpn| -> bool {
-                self.find_pte(vpn)
+                self.find_pte_create(vpn)
                     .is_some_and(|v| PageTableEntry::is_valid(&v))
             })
     }
 
-    // ///is invalid?
-    // pub fn interval_invalid(&m·ut self, from: VirtPageNum, end: VirtPageNum) -> bool {
-    //     (from.0..end.0)
-    //         .into_iter()
-    //         .map(|num| VirtPageNum::from(num))
-    //         .any(|vpn| -> bool {
-    //             match self.find_pte_create(vpn) {
-    //                 Some(pte) => !PageTableEntry::is_valid(&pte),
-    //                 None => true,
-    //             }
-    //         })
-    // }
-
-    pub fn interval_op<T>(
-        &mut self,
-        from: VirtPageNum,
-        end: VirtPageNum,
-    ) -> _core::iter::Map<_core::ops::Range<usize>, impl FnMut(usize) -> VirtPageNum> {
+    ///is invalid?
+    pub fn interval_invalid(&mut self, from: VirtPageNum, end: VirtPageNum) -> bool {
         (from.0..end.0)
             .into_iter()
             .map(|num| VirtPageNum::from(num))
+            .any(|vpn| -> bool {
+                match self.find_pte_create(vpn) {
+                    Some(pte) => !PageTableEntry::is_valid(&pte),
+                    None => true,
+                }
+            })
+    }
+
+    pub fn interval_op<T>(&mut self, from: VirtPageNum, end: VirtPageNum, op: T)
+    where
+        T: FnMut(VirtPageNum),
+    {
+        (from.0..end.0)
             .into_iter()
+            .map(|num| VirtPageNum::from(num))
+            .for_each(op)
     }
 
     /// Temporarily used to get arguments from user space.

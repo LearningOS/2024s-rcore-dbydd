@@ -53,18 +53,16 @@ pub fn alloc_virtual_memory(start: usize, len: usize, port: usize) -> isize {
 
     to = VirtAddr::from(to_vpn);
 
-    TASK_MANAGER.operate_memset(|memory_set| {
-        unsafe {
-            if (*memory_set).page_table.interval_valid(from_vpn, to_vpn) {
-                (*memory_set).insert_framed_area(
-                    from.into(),
-                    to.into(),
-                    MapPermission::from_bits((port << 1 | 16) as u8).unwrap(),
-                );
-                return 0;
-            }
+    TASK_MANAGER.operate_memset(|memory_set| unsafe {
+        if (*memory_set).page_table.interval_valid(from_vpn, to_vpn) {
+            return -1;
         }
-        -1
+        (*memory_set).insert_framed_area(
+            from.into(),
+            to.into(),
+            MapPermission::from_bits((port << 1 | 16) as u8).unwrap(),
+        );
+        return 0;
     })
 }
 
@@ -77,24 +75,23 @@ pub fn free_virtual_memory(start: usize, len: usize) -> isize {
     let to_vpn = to.ceil();
 
     TASK_MANAGER.operate_memset(|memory_set| unsafe {
-        if (*memory_set).page_table.interval_valid(from_vpn, to_vpn) {
-            if (*memory_set)
-                .page_table
-                .interval_op::<isize>(from_vpn, to_vpn)
-                .any(|thisvpn| {
-                    (*memory_set)
-                        .areas
-                        .iter_mut()
-                        .filter(|area| (*area).vpn_range.get_start() == thisvpn)
-                        .any(|area| {
-                            area.unmap(&mut (*memory_set).page_table);
-                            true
-                        })
-                })
-            {
-                return 0;
-            };
+        if (*memory_set).page_table.interval_invalid(from_vpn, to_vpn) {
+            return -1;
         }
-        -1
+        let mut res: isize = -1;
+
+        (*memory_set)
+            .page_table
+            .interval_op(from_vpn, to_vpn, |num| {
+                if let Some(val) = (*memory_set)
+                    .areas
+                    .iter_mut()
+                    .find(|area| area.vpn_range.get_start() == num)
+                {
+                    val.unmap(&mut (*memory_set).page_table);
+                    res = 0;
+                }
+            });
+        return res;
     })
 }

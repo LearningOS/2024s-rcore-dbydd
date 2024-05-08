@@ -23,6 +23,7 @@ pub struct TimeVal {
 
 /// Task information
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct TaskInfo {
     /// Task status in it's life cycle
     status: TaskStatus,
@@ -70,6 +71,7 @@ pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
         translated.status = inner.task_status;
         translated.syscall_times = inner.syscall_times;
         translated.time = get_time_ms() - inner.time;
+        println!("{:?}", translated);
     });
 
     0
@@ -82,6 +84,7 @@ pub fn sys_mmap(start: usize, len: usize, port: usize) -> isize {
     if start % PAGE_SIZE != 0 || port & !0x7 != 0 || port & 0x7 == 0 {
         return -1;
     }
+
     mm::alloc_virtual_memory(start, len, port)
 }
 
