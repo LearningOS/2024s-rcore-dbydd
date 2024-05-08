@@ -91,10 +91,10 @@ impl TaskManager {
     ///fetch a copy of  task control block
     pub(crate) fn with_task_info<F, T>(&self, f: F) -> T
     where
-        F: Fn(&TaskControlBlock, &Self) -> T,
+        F: Fn(&TaskControlBlock) -> T,
     {
         let exclusive_access = self.inner.exclusive_access();
-        f(&exclusive_access.tasks[exclusive_access.current_task], self)
+        f(&exclusive_access.tasks[exclusive_access.current_task])
     }
 
     pub(crate) fn operate_memset<F, T>(&self, mut op: F) -> T

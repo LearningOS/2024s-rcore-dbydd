@@ -70,12 +70,11 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
 pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
     TASK_MANAGER.inc_call_times(SYSCALL_TASK_INFO);
     trace!("kernel: sys_task_info NOT IMPLEMENTED YET!");
-    TASK_MANAGER.with_task_info(|inner, manager| {
-        let translated = translate(manager.get_current_token(), ti);
+    TASK_MANAGER.with_task_info(|inner| {
+        let translated = translate(inner.get_user_token(), ti);
         translated.status = inner.task_status;
         translated.syscall_times = inner.syscall_times;
         translated.time = get_time_ms() - inner.time;
-        println!("{:?}", translated);
     });
 
     0
