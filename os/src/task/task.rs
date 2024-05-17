@@ -2,8 +2,8 @@
 
 use crate::config::MAX_SYSCALL_NUM;
 
-use super::TaskContext;
 use super::{kstack_alloc, pid_alloc, KernelStack, PidHandle};
+use super::{TaskContext, TASK_MANAGER};
 use crate::config::TRAP_CONTEXT_BASE;
 use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sync::UPSafeCell;
@@ -25,6 +25,11 @@ pub struct TaskControlBlock {
 
     /// Mutable
     inner: UPSafeCell<TaskControlBlockInner>,
+
+    ///syscall_times
+    pub syscall_times: [u32; MAX_SYSCALL_NUM],
+    ///init_time
+    pub time: usize,
 }
 
 impl TaskControlBlock {
@@ -36,6 +41,32 @@ impl TaskControlBlock {
     pub fn get_user_token(&self) -> usize {
         let inner = self.inner_exclusive_access();
         inner.memory_set.token()
+    }
+
+    pub fn inc_stride(&self) {
+        let mut exclusive_access = TASK_MANAGER.exclusive_access();
+        exclusive_access.check_map_manager(self.pid.0);
+        let entry = exclusive_access.stride_map[&self.pid.0];
+        exclusive_access
+            .stride_map
+            .insert(self.pid.0, (entry.0 + entry.1, entry.1));
+    }
+
+    pub fn get_stride(&self) -> usize {
+        let mut exclusive_access = TASK_MANAGER.exclusive_access();
+        exclusive_access.check_map_manager(self.pid.0);
+        exclusive_access.stride_map[&self.pid.0].0
+    }
+
+    pub fn check_map_task(&self) {
+        TASK_MANAGER
+            .exclusive_access()
+            .check_map_manager(self.pid.0);
+    }
+
+    pub fn set_pass(&self, pass: usize) {
+        let mut map = TASK_MANAGER.exclusive_access().stride_map[&self.pid.0];
+        map.1 = pass;
     }
 }
 
@@ -51,10 +82,6 @@ pub struct TaskControlBlockInner {
     pub task_status: TaskStatus,
     /// The task context
     pub task_cx: TaskContext,
-    ///syscall_times
-    pub syscall_times: [u32; MAX_SYSCALL_NUM],
-    ///init_time
-    pub time: usize,
     /// Application address space
     pub memory_set: MemorySet,
 
@@ -123,10 +150,10 @@ impl TaskControlBlock {
                     exit_code: 0,
                     heap_bottom: user_sp,
                     program_brk: user_sp,
-                    syscall_times: [0; MAX_SYSCALL_NUM],
-                    time: 0,
                 })
             },
+            syscall_times: [0; MAX_SYSCALL_NUM],
+            time: 0,
         };
         // prepare TrapContext in user space
         let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
@@ -198,10 +225,10 @@ impl TaskControlBlock {
                     exit_code: 0,
                     heap_bottom: parent_inner.heap_bottom,
                     program_brk: parent_inner.program_brk,
-                    syscall_times: [0; MAX_SYSCALL_NUM],
-                    time: 0,
                 })
             },
+            syscall_times: [0; MAX_SYSCALL_NUM],
+            time: 0,
         });
         // add child
         parent_inner.children.push(task_control_block.clone());

@@ -21,7 +21,7 @@ mod switch;
 #[allow(clippy::module_inception)]
 pub mod task;
 
-use crate::loader::get_app_data_by_name;
+use crate::{config, loader::get_app_data_by_name, mm::MemorySet};
 
 use alloc::sync::Arc;
 use lazy_static::*;
@@ -115,4 +115,23 @@ lazy_static! {
 ///Add init process to the manager
 pub fn add_initproc() {
     add_task(INITPROC.clone());
+}
+
+pub fn current_call_count() -> [u32; config::MAX_SYSCALL_NUM] {
+    current_task().unwrap().syscall_times
+}
+
+pub fn current_init_time() -> usize {
+    current_task().unwrap().time
+}
+
+pub fn op_current_memset<T>(mut fun: T) -> isize
+where
+    T: FnMut(*mut MemorySet) -> isize,
+{
+    let borrow_mut = processor::PROCESSOR.exclusive_access();
+    let binding = borrow_mut.current().unwrap();
+    let mut current_task = binding.inner_exclusive_access();
+    // let memory_set = &mut current_task.memory_set as *mut MemorySet;
+    fun(&mut current_task.memory_set)
 }
